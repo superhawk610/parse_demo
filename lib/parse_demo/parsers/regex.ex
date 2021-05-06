@@ -1,7 +1,7 @@
 defmodule ParseDemo.Parsers.Regex do
   @moduledoc "Regular expression-based parser."
 
-  @regex ~r/(?<key>[a-z0-9]+)(?:\[(\d+)\])*/i
+  @regex ~r/(?<key>[a-z0-9\-\_]+)(?:\[(\d+)\])*/i
 
   @doc "Parse an input string."
   @spec parse(String.t()) :: {:ok, [term(), ...]} | {:error, String.t()}
