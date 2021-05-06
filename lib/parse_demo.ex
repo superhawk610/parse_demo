@@ -1,98 +1,28 @@
 defmodule ParseDemo do
-  @moduledoc "Basic parser combinators."
+  @moduledoc "Array notation parser demo."
 
-  defmodule Parsers do
-    @moduledoc false
+  @parsers %{
+    manual: ParseDemo.Parsers.Manual,
+    regex: ParseDemo.Parsers.Regex,
+    nimble_parsec: ParseDemo.Parsers.NimbleParsec
+  }
 
-    @type parse_result :: {{:ok, term()}, String.t()} | {:error, String.t()}
-    @type parser :: (String.t() -> parse_result())
+  @default_parser :nimble_parsec
 
-    @spec utf8_char(pos_integer()) :: parser()
-    def utf8_char(c) do
-      fn input ->
-        case input do
-          <<^c::utf8, rest::binary>> ->
-            {{:ok, c}, rest}
+  @typedoc "The name of an available parser."
+  @type parser_name :: :manual | :regex | :nimble_parsec
 
-          rest ->
-            {:error, rest}
-        end
-      end
-    end
+  @spec parse_with(parser_name(), String.t()) :: {:ok, [term(), ...]} | {:error, String.t()}
+  def parse_with(parser \\ @default_parser, input) do
+    case Map.fetch(@parsers, parser) do
+      {:ok, parser} ->
+        parser.parse(input)
 
-    @spec digit :: parser()
-    def digit do
-      fn input ->
-        case input do
-          <<c::utf8, rest::binary>> when c in ?0..?9 ->
-            {{:ok, c}, rest}
-
-          rest ->
-            {:error, rest}
-        end
-      end
-    end
-
-    @spec end_of_string :: parser()
-    def end_of_string do
-      fn input ->
-        case input do
-          "" ->
-            {{:ok, ""}, ""}
-
-          rest ->
-            {:error, rest}
-        end
-      end
-    end
-
-    @spec concat(parser(), parser()) :: parser()
-    def concat(p1, p2) do
-      fn input ->
-        with {{:ok, p1_output}, rest} <- p1.(input),
-             {{:ok, p2_output}, rest} <- p2.(rest) do
-          {{:ok, [p1_output, p2_output]}, rest}
-        else
-          {:error, rest} ->
-            {:error, rest}
-        end
-      end
-    end
-
-    @spec zero_or_more(parser()) :: parser()
-    def zero_or_more(parser) do
-      fn input ->
-        do_zero_or_more(parser, input)
-      end
-    end
-
-    defp do_zero_or_more(parser, rest, acc \\ [])
-
-    defp do_zero_or_more(parser, rest, acc) do
-      case parser.(rest) do
-        {{:ok, output}, rest} ->
-          do_zero_or_more(parser, rest, [output | acc])
-
-        {:error, rest} ->
-          {{:ok, Enum.reverse(acc)}, rest}
-      end
+      :error ->
+        raise "no parser named #{parser}"
     end
   end
 
-  def demo do
-    parse_a = Parsers.utf8_char(?a)
-    IO.inspect(parse_a.("a"))
-    IO.inspect(parse_a.("b"))
-
-    parse_a_eos = Parsers.concat(Parsers.utf8_char(?a), Parsers.end_of_string())
-    IO.inspect(parse_a.("ab"))
-    IO.inspect(parse_a_eos.("ab"))
-
-    parse_ab = Parsers.concat(Parsers.utf8_char(?a), Parsers.utf8_char(?b))
-    IO.inspect(parse_ab.("ab"))
-
-    parse_number = Parsers.zero_or_more(Parsers.digit())
-    IO.inspect(parse_number.("123"))
-    IO.inspect(parse_number.("abc"))
-  end
+  @spec parse(String.t()) :: {:ok, [term(), ...]} | {:error, String.t()}
+  def parse(input), do: parse_with(@default_parser, input)
 end
